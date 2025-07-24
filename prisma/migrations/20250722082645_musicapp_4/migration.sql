@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "songs" ALTER COLUMN "musicTag" DROP NOT NULL,
+ALTER COLUMN "duration" SET DEFAULT '00:00';

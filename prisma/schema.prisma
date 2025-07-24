@@ -1,0 +1,120 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  phoneNumber String?  @map("phone_number")
+  email       String   @unique
+  password    String?
+  role        String   @default("user")
+  uid         String?  @unique
+  profileImage String? @map("profile_image") // URL of the profile image
+  profileImageFilename String? @map("profile_image_filename") // Filename for deletion
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  likes      Like[]
+  songs       Song[]  
+  orders      Order[]
+  @@map("users")
+}
+
+model Song {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  musicTag    String?
+  pricing     Float    @default(0.00)
+  duration    String   @default("00:00")
+  bpm         Int?
+  
+  // File URLs and filenames
+  audioFile   String?
+  audioFilename String?
+  coverImage  String?
+  coverImageFilename String?
+  
+  // Publishing and status
+  status      SongStatus @default(DRAFT)
+  publishAt   DateTime?
+  publishedAt DateTime?
+  
+  // Relations
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  // Add these new fields
+  playCount   Int      @default(0)
+  likeCount   Int      @default(0)
+  
+  // Add relation to likes
+  likes       Like[]
+  orders      Order[]
+  
+  @@map("songs")
+}
+
+enum SongStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  songId    String
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  song      Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, songId]) // Ensure one like per user per song
+  @@map("likes")
+}
+
+
+model Order {
+  id          String   @id @default(cuid())
+  userId      String
+  songId      String
+  amount      Float?
+  status      OrderStatus @default(PENDING)
+  paymentMethod String?
+  transactionId String? @unique
+  metadata    Json?    // Additional payment data
+  
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  song        Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  COMPLETED
+  FAILED
+  REFUNDED
+}
