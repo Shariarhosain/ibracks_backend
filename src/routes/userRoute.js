@@ -31,6 +31,8 @@ router.put('/:id', uploadSingle, userController.updateUser);
 router.delete('/:id', userController.deleteUser);
 router.delete('/:id/image', userController.removeUserProfileImage);
 
+router.put('/update-password', userController.updatePassword);
+
 // Apply multer error handling middleware
 router.use(handleMulterError);
 

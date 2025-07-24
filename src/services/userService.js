@@ -449,6 +449,45 @@ const userService = {
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to check image upload status', 500);
     }
+  },
+  // Update user password
+  async updatePassword(userId, newPassword) {
+    try {
+      // Check if user exists
+      const existingUser = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+      
+      if (!existingUser) {
+        throw new AppError('User not found', 404);
+      }
+      
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+      
+      // Update user password
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: { password: hashedPassword },
+        select: {
+          id: true,
+          name: true,
+          phoneNumber: true,
+          email: true,
+          role: true,
+          uid: true,
+          profileImage: true,
+          profileImageFilename: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+      
+      return updatedUser;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to update password', 500);
+    }
   }
 };
 

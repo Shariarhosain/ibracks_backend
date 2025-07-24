@@ -260,6 +260,33 @@ const userController = {
         message: error.message
       });
     }
+  },
+
+  // Update user password
+  async updatePassword(req, res) {
+    try {
+      const { newPassword } = req.body;
+
+      if (!newPassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'New password is required'
+        });
+      }
+
+      const user = await userService.updatePassword(req.user.id, newPassword);
+
+      res.status(200).json({
+        success: true,
+        message: 'Password updated successfully',
+        data: user
+      });
+    } catch (error) {
+      res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message
+      });
+    }
   }
 };
 
