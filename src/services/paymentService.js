@@ -290,6 +290,320 @@ const paymentService = {
     }
   },
 
+  async get24HourSalesAnalytics() {
+  try {
+    const now = new Date();
+    // Define the end of the current 24-hour period
+    const currentPeriodEnd = new Date(now);
+    // Define the start of the current 24-hour period (24 hours ago)
+    const currentPeriodStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    // Define the start of the previous 24-hour period for comparison (48 hours ago)
+    const previousPeriodStart = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+
+    // Fetch orders from the last 24 hours
+    const currentPeriodOrders = await prisma.order.findMany({
+      where: {
+        status: 'ACCEPTED',
+        updatedAt: {
+          gte: currentPeriodStart,
+          lte: currentPeriodEnd,
+        },
+      },
+      include: {
+        song: {
+          select: {
+            id: true,
+            title: true,
+            pricing: true,
+          },
+        },
+      },
+    });
+
+    // Fetch orders from the previous 24 hours for comparison
+    const previousPeriodOrders = await prisma.order.findMany({
+      where: {
+        status: 'ACCEPTED',
+        updatedAt: {
+          gte: previousPeriodStart,
+          lte: currentPeriodStart, // Note the end time is the start of the current period
+        },
+      },
+    });
+
+    // --- METRIC CALCULATIONS ---
+
+    // Calculate current period metrics
+    const currentRevenue = currentPeriodOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+    const currentSalesCount = currentPeriodOrders.length;
+
+    // Calculate previous period metrics
+    const previousRevenue = previousPeriodOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+    const previousSalesCount = previousPeriodOrders.length;
+
+    // Calculate percentage changes
+    const revenueChange = previousRevenue > 0 ?
+      ((currentRevenue - previousRevenue) / previousRevenue) * 100 :
+      currentRevenue > 0 ? 100 : 0;
+
+    const salesChange = previousSalesCount > 0 ?
+      ((currentSalesCount - previousSalesCount) / previousSalesCount) * 100 :
+      currentSalesCount > 0 ? 100 : 0;
+
+    // --- HOURLY SALES STATISTICS (for the chart) ---
+    
+    // Initialize an array for 24 hours, each with revenue and purchase count
+    const hourlyStats = Array.from({ length: 24 }, (_, i) => {
+        const hour = new Date(currentPeriodStart);
+        hour.setHours(hour.getHours() + i);
+        return {
+            // Label for the hour, e.g., "3am", "12pm"
+            timeLabel: hour.toLocaleString('en-US', { hour: 'numeric', hour12: true }).toLowerCase(),
+            totalRevenue: 0,
+            totalPurchase: 0,
+        };
+    });
+
+    // Populate the hourly statistics
+    currentPeriodOrders.forEach(order => {
+        const orderHour = new Date(order.updatedAt).getHours();
+        // Find the correct hour slot to update
+        for(let i = 0; i < 24; i++) {
+            const statHour = new Date(currentPeriodStart);
+            statHour.setHours(statHour.getHours() + i);
+            if (statHour.getHours() === orderHour) {
+                hourlyStats[i].totalRevenue += (order.amount || 0);
+                hourlyStats[i].totalPurchase++;
+                break;
+            }
+        }
+    });
+
+
+    // --- TOP SONGS (from the last 24 hours) ---
+    const songSales = currentPeriodOrders.reduce((acc, order) => {
+      const songId = order.songId;
+      if (!acc[songId]) {
+        acc[songId] = {
+          songId,
+          songTitle: order.song?.title || 'Unknown',
+          count: 0,
+          revenue: 0,
+          pricing: order.song?.pricing || 0,
+        };
+      }
+      acc[songId].count++;
+      acc[songId].revenue += (order.amount || 0);
+      return acc;
+    }, {});
+
+    const topSongs = Object.values(songSales)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    // --- RETURN FINAL ANALYTICS OBJECT ---
+    return {
+      summary: {
+        totalRevenue: Number(currentRevenue.toFixed(2)),
+        totalPurchases: currentSalesCount,
+        revenueChange: Number(revenueChange.toFixed(2)),
+        purchasesChange: Number(salesChange.toFixed(2)),
+      },
+      salesStatistic: hourlyStats,
+      topSongs,
+      totalSongsSold: Object.keys(songSales).length,
+    };
+
+  } catch (error) {
+    console.error('Error fetching 24-hour sales analytics:', error);
+    throw new AppError('Failed to fetch 24-hour sales analytics', 500);
+  }
+},
+
+async get30DaySalesAnalytics() {
+  try {
+    const now = new Date();
+    // Define the current 30-day period
+    const currentPeriodEnd = new Date(now);
+    const currentPeriodStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Define the previous 30-day period for comparison
+    const previousPeriodStart = new Date(currentPeriodStart.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Fetch orders from the last 30 days
+    const currentPeriodOrders = await prisma.order.findMany({
+      where: {
+        status: 'ACCEPTED',
+        updatedAt: {
+          gte: currentPeriodStart,
+          lte: currentPeriodEnd,
+        },
+      },
+    });
+
+    // Fetch orders from the previous 30 days
+    const previousPeriodOrders = await prisma.order.findMany({
+      where: {
+        status: 'ACCEPTED',
+        updatedAt: {
+          gte: previousPeriodStart,
+          lte: currentPeriodStart,
+        },
+      },
+    });
+
+    // --- METRIC CALCULATIONS ---
+
+    // Calculate current period metrics
+    const currentRevenue = currentPeriodOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+    const currentSalesCount = currentPeriodOrders.length;
+
+    // Calculate previous period metrics
+    const previousRevenue = previousPeriodOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+    const previousSalesCount = previousPeriodOrders.length;
+
+    // Calculate percentage changes
+    const revenueChange = previousRevenue > 0 ?
+      ((currentRevenue - previousRevenue) / previousRevenue) * 100 :
+      currentRevenue > 0 ? 100 : 0;
+
+    const salesChange = previousSalesCount > 0 ?
+      ((currentSalesCount - previousSalesCount) / previousSalesCount) * 100 :
+      currentSalesCount > 0 ? 100 : 0;
+
+    // --- WEEKLY SALES STATISTICS (for the chart) ---
+    const weeklyStats = [
+        { week: 'Week 1', totalRevenue: 0, totalPurchase: 0 },
+        { week: 'Week 2', totalRevenue: 0, totalPurchase: 0 },
+        { week: 'Week 3', totalRevenue: 0, totalPurchase: 0 },
+        { week: 'Week 4', totalRevenue: 0, totalPurchase: 0 },
+    ];
+    
+    currentPeriodOrders.forEach(order => {
+        const orderDate = new Date(order.updatedAt);
+        const daysAgo = (currentPeriodEnd.getTime() - orderDate.getTime()) / (1000 * 3600 * 24);
+        
+        if (daysAgo <= 7) { // Week 4 (most recent)
+            weeklyStats[3].totalRevenue += (order.amount || 0);
+            weeklyStats[3].totalPurchase++;
+        } else if (daysAgo <= 14) { // Week 3
+            weeklyStats[2].totalRevenue += (order.amount || 0);
+            weeklyStats[2].totalPurchase++;
+        } else if (daysAgo <= 21) { // Week 2
+            weeklyStats[1].totalRevenue += (order.amount || 0);
+            weeklyStats[1].totalPurchase++;
+        } else if (daysAgo <= 30) { // Week 1
+            weeklyStats[0].totalRevenue += (order.amount || 0);
+            weeklyStats[0].totalPurchase++;
+        }
+    });
+
+    // --- RETURN FINAL ANALYTICS OBJECT ---
+    return {
+      summary: {
+        totalRevenue: Number(currentRevenue.toFixed(2)),
+        totalPurchases: currentSalesCount,
+        revenueChange: Number(revenueChange.toFixed(2)),
+        purchasesChange: Number(salesChange.toFixed(2)),
+      },
+      salesStatistic: weeklyStats,
+    };
+
+  } catch (error) {
+    console.error('Error fetching 30-day sales analytics:', error);
+    throw new AppError('Failed to fetch 30-day sales analytics', 500);
+  }
+},
+
+async getCustomDateRangeSalesAnalytics(startDateISO, endDateISO) {
+  try {
+    const startDate = new Date(startDateISO);
+    
+
+    const endDate = new Date(endDateISO);
+    endDate.setHours(23, 59, 59, 999); // Set to the end of the day
+
+    // --- COMPARISON PERIOD CALCULATION ---
+    const rangeDuration = endDate.getTime() - startDate.getTime();
+    const previousPeriodEndDate = new Date(startDate.getTime() - 1); // Day before the start date
+    const previousPeriodStartDate = new Date(previousPeriodEndDate.getTime() - rangeDuration);
+
+    // --- DATABASE QUERIES ---
+    // Fetch orders for the selected period
+    const currentPeriodOrders = await prisma.order.findMany({
+      where: {
+        status: 'ACCEPTED',
+        updatedAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    });
+
+    // Fetch orders for the previous period for comparison
+    const previousPeriodOrders = await prisma.order.findMany({
+      where: {
+        status: 'ACCEPTED',
+        updatedAt: {
+          gte: previousPeriodStartDate,
+          lte: previousPeriodEndDate,
+        },
+      },
+    });
+
+    // --- METRIC CALCULATIONS ---
+    const currentRevenue = currentPeriodOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+    const currentSalesCount = currentPeriodOrders.length;
+
+    const previousRevenue = previousPeriodOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+    const previousSalesCount = previousPeriodOrders.length;
+
+    const revenueChange = previousRevenue > 0 ?
+      ((currentRevenue - previousRevenue) / previousRevenue) * 100 :
+      currentRevenue > 0 ? 100 : 0;
+
+    const salesChange = previousSalesCount > 0 ?
+      ((currentSalesCount - previousSalesCount) / previousSalesCount) * 100 :
+      currentSalesCount > 0 ? 100 : 0;
+
+    // --- DAILY SALES STATISTICS (for the chart) ---
+    const dailyStats = {};
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const dateString = d.toISOString().split('T')[0]; // YYYY-MM-DD
+      const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); // "Jul 10"
+      dailyStats[dateString] = {
+        dateLabel,
+        totalRevenue: 0,
+        totalPurchase: 0
+      };
+    }
+
+    currentPeriodOrders.forEach(order => {
+      const orderDateString = new Date(order.updatedAt).toISOString().split('T')[0];
+      if (dailyStats[orderDateString]) {
+        dailyStats[orderDateString].totalRevenue += (order.amount || 0);
+        dailyStats[orderDateString].totalPurchase++;
+      }
+    });
+
+    // --- RETURN FINAL ANALYTICS OBJECT ---
+    return {
+      summary: {
+        totalRevenue: Number(currentRevenue.toFixed(2)),
+        totalPurchases: currentSalesCount,
+        revenueChange: Number(revenueChange.toFixed(2)),
+        purchasesChange: Number(salesChange.toFixed(2)),
+      },
+      salesStatistic: Object.values(dailyStats), // Convert map to array for the chart
+    };
+
+  } catch (error) {
+    console.error('Error fetching custom range sales analytics:', error);
+    throw new AppError('Failed to fetch custom range sales analytics', 500);
+  }
+},
+
 // Get weekly revenue analytics
 async getWeeklyRevenueAnalytics(weekStartDate = null) {
   try {
@@ -434,6 +748,100 @@ async getWeeklyRevenueAnalytics(weekStartDate = null) {
     throw new AppError('Failed to fetch weekly revenue analytics', 500);
   }
 },
+
+async getMonthlySalesAnalytics(year, month) {
+  try {
+    // --- DATE CALCULATIONS ---
+    // Note: In JavaScript, months are 0-indexed (0=Jan, 11=Dec).
+    const monthIndex = month - 1;
+
+    // Calculate start and end dates for the selected month
+    const startDate = new Date(year, monthIndex, 1);
+    const endDate = new Date(year, monthIndex + 1, 0); // The '0' day of the next month gives the last day of the current month
+    endDate.setHours(23, 59, 59, 999);
+
+    // Calculate start and end dates for the previous month for comparison
+    const previousMonthEndDate = new Date(startDate.getTime() - 1); // The day before the start of the selected month
+    const previousMonthStartDate = new Date(previousMonthEndDate.getFullYear(), previousMonthEndDate.getMonth(), 1);
+
+    // --- DATABASE QUERIES ---
+    const currentMonthOrders = await prisma.order.findMany({
+      where: {
+        status: 'ACCEPTED',
+        updatedAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    });
+
+    const previousMonthOrders = await prisma.order.findMany({
+      where: {
+        status: 'ACCEPTED',
+        updatedAt: {
+          gte: previousMonthStartDate,
+          lte: previousMonthEndDate,
+        },
+      },
+    });
+
+    // --- METRIC CALCULATIONS ---
+    const currentRevenue = currentMonthOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+    const currentSalesCount = currentMonthOrders.length;
+
+    const previousRevenue = previousMonthOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+    const previousSalesCount = previousMonthOrders.length;
+
+    const revenueChange = previousRevenue > 0 ?
+      ((currentRevenue - previousRevenue) / previousRevenue) * 100 :
+      currentRevenue > 0 ? 100 : 0;
+
+    const salesChange = previousSalesCount > 0 ?
+      ((currentSalesCount - previousSalesCount) / previousSalesCount) * 100 :
+      currentSalesCount > 0 ? 100 : 0;
+
+    // --- WEEKLY SALES STATISTICS (for the chart) ---
+    const weeklyStats = [
+        { week: 'Week 1', totalRevenue: 0, totalPurchase: 0 },
+        { week: 'Week 2', totalRevenue: 0, totalPurchase: 0 },
+        { week: 'Week 3', totalRevenue: 0, totalPurchase: 0 },
+        { week: 'Week 4', totalRevenue: 0, totalPurchase: 0 },
+    ];
+
+    currentMonthOrders.forEach(order => {
+        const dayOfMonth = new Date(order.updatedAt).getDate();
+        if (dayOfMonth <= 7) {
+            weeklyStats[0].totalRevenue += (order.amount || 0);
+            weeklyStats[0].totalPurchase++;
+        } else if (dayOfMonth <= 14) {
+            weeklyStats[1].totalRevenue += (order.amount || 0);
+            weeklyStats[1].totalPurchase++;
+        } else if (dayOfMonth <= 21) {
+            weeklyStats[2].totalRevenue += (order.amount || 0);
+            weeklyStats[2].totalPurchase++;
+        } else { // Days 22 to end of month
+            weeklyStats[3].totalRevenue += (order.amount || 0);
+            weeklyStats[3].totalPurchase++;
+        }
+    });
+
+    // --- RETURN FINAL ANALYTICS OBJECT ---
+    return {
+      summary: {
+        totalRevenue: Number(currentRevenue.toFixed(2)),
+        totalPurchases: currentSalesCount,
+        revenueChange: Number(revenueChange.toFixed(2)),
+        purchasesChange: Number(salesChange.toFixed(2)),
+      },
+      salesStatistic: weeklyStats,
+    };
+
+  } catch (error) {
+    console.error('Error fetching monthly sales analytics:', error);
+    throw new AppError('Failed to fetch monthly sales analytics', 500);
+  }
+},
+
 
   // Get user's orders
   async getUserOrders(userId, page = 1, limit = 10) {

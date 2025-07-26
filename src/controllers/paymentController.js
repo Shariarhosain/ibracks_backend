@@ -100,6 +100,102 @@ const paymentController = {
     }
   },
 
+  async get24HourSalesAnalyticsController(req, res, next) {
+  try {
+    // This calls the detailed service function you have in the Canvas.
+    // No request parameters are needed as the service function always calculates
+    // for the most recent 24-hour period.
+    const analytics = await paymentService.get24HourSalesAnalytics();
+
+    // Send the structured analytics data back to the client
+    res.status(200).json({
+      success: true,
+      analytics,
+    });
+  } catch (error) {
+    // Pass any errors to the global error handling middleware
+    next(error);
+  }
+},
+
+
+async get30DaySalesAnalyticsController(req, res, next) {
+  try {
+    // Call the service function to get the 30-day analytics data
+    const analytics = await paymentService.get30DaySalesAnalytics();
+
+    // Send the structured analytics data back to the client
+    res.status(200).json({
+      success: true,
+      analytics,
+    });
+  } catch (error) {
+    // Pass any errors to the global error handling middleware
+    next(error);
+  }
+},
+async getCustomDateRangeSalesAnalyticsController(req, res, next) {
+  try {
+    const { startDate, endDate } = req.query;
+
+    // Validate that start and end dates are provided
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide both a start date and an end date.',
+      });
+    }
+
+    // Call the service function with the provided dates
+    const analytics = await paymentService.getCustomDateRangeSalesAnalytics(startDate, endDate);
+
+    // Send the structured analytics data back to the client
+    res.status(200).json({
+      success: true,
+      analytics,
+    });
+  } catch (error) {
+    // Pass any errors to the global error handling middleware
+    next(error);
+  }
+},
+
+async getMonthlySalesAnalyticsController(req, res, next) {
+  try {
+    let { year, month } = req.query;
+
+    // Default to the current year and month if not provided
+    const now = new Date();
+    if (!year) {
+      year = now.getFullYear();
+    }
+    if (!month) {
+      month = now.getMonth() + 1; // JS month is 0-indexed, so add 1
+    }
+
+    // Convert to numbers and validate
+    const yearNum = parseInt(year, 10);
+    const monthNum = parseInt(month, 10);
+
+    if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid year or month provided.'
+        });
+    }
+
+    const analytics = await paymentService.getMonthlySalesAnalytics(yearNum, monthNum);
+
+    res.status(200).json({
+      success: true,
+      analytics,
+    });
+  } catch (error) {
+    next(error);
+  }
+},
+
+
   // Get weekly revenue analytics
   async getWeeklyRevenueAnalytics(req, res, next) {
     try {

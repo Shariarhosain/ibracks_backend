@@ -16,6 +16,10 @@ router.get('/orders', verifyToken, paymentController.getAllOrders); // Keep this
 
 // Analytics routes
 router.get('/analytics/daily', verifyToken, paymentController.getDailySalesAnalytics);
+router.get('/analytics/daily/24hour', verifyToken, paymentController.get24HourSalesAnalyticsController);
+router.get('/analytics/monthly/30days', verifyToken, paymentController.get30DaySalesAnalyticsController);
+router.get('/analytics/sales-custom-range', verifyToken, paymentController.getCustomDateRangeSalesAnalyticsController);
+router.get('/analytics/sales-monthly', verifyToken, paymentController.getMonthlySalesAnalyticsController);
 router.get('/analytics/weekly', verifyToken, paymentController.getWeeklyRevenueAnalytics);
 router.get('/analytics/dashboard', verifyToken, paymentController.getAnalyticsDashboard);
 
