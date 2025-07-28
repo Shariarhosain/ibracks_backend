@@ -15,6 +15,37 @@ import AppError from "../utils/error.js";
 
 const prisma = new PrismaClient();
 
+function timeAgo(date) {
+  // Calculate the difference in seconds
+  const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+
+  // Handle the "just now" case
+  if (seconds < 29) {
+    return "just now";
+  }
+
+  // Define time intervals in seconds
+  const intervals = {
+    year: 31536000,
+    month: 2592000,
+    day: 86400,
+    hour: 3600,
+    minute: 60
+  };
+
+  // Loop through intervals to find the correct unit
+  for (const unit in intervals) {
+    const counter = Math.floor(seconds / intervals[unit]);
+    if (counter > 0) {
+      // Return the formatted string and handle plurals (e.g., "1 minute" vs. "2 minutes")
+      return `${counter} ${unit}${counter > 1 ? 's' : ''} ago`;
+    }
+  }
+
+  // Fallback for seconds (rarely reached)
+  return `${seconds} second${seconds > 1 ? 's' : ''} ago`;
+}
+
 const songService = {
   // Create a new song
   async createSong(songData, files = {}) {
@@ -731,6 +762,62 @@ async getSongStats(songId, userId = null) {
   } catch (error) {
     if (error instanceof AppError) throw error;
     throw new AppError('Failed to fetch song stats', 500);
+  }
+},
+
+// getNewReleases function using the custom timeAgo helper
+async  getNewReleases(page = 1, limit = 10) {
+  try {
+    const skip = (page - 1) * limit;
+
+    // 1. Get the total count for accurate pagination (this is a corrected implementation)
+    const totalSongsCount = await prisma.song.count({
+      where: {
+        status: 'PUBLISHED'
+      },
+    });
+
+    // 2. Fetch the songs for the current page
+    const newReleases = await prisma.song.findMany({
+      where: {
+        status: 'PUBLISHED'
+      },
+      orderBy: {
+        publishedAt: 'desc'
+      },
+      skip,
+      take: parseInt(limit),
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    // 3. Add the 'publishedAgo' field using our custom helper function
+    const songsWithTimeAgo = newReleases.map(song => ({
+      ...song,
+      publishedAgo: timeAgo(song.publishedAt)
+    }));
+
+    // 4. Return the results with corrected pagination
+    return {
+      songs: songsWithTimeAgo,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalSongsCount / limit),
+        totalSongs: totalSongsCount,
+        hasNext: skip + newReleases.length < totalSongsCount,
+        hasPrev: page > 1
+      }
+    };
+  } catch (error) {
+    console.error(error); // It's good practice to log the actual error for debugging
+    throw new AppError('Failed to fetch new releases', 500);
   }
 }
 };

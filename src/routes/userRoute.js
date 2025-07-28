@@ -12,6 +12,7 @@ const router = express.Router();
 // Public routes
 router.post('/register', uploadSingle, userController.createUser);
 router.post('/login', userController.loginUser);
+router.put('/update-password', userController.updatePassword);
 
 // Protected routes (require authentication)
 router.use(verifyToken); // Apply middleware to all routes below
@@ -31,7 +32,7 @@ router.put('/:id', uploadSingle, userController.updateUser);
 router.delete('/:id', userController.deleteUser);
 router.delete('/:id/image', userController.removeUserProfileImage);
 
-router.put('/update-password', userController.updatePassword);
+
 
 // Apply multer error handling middleware
 router.use(handleMulterError);

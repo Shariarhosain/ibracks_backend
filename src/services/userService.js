@@ -281,7 +281,7 @@ const userService = {
   },
 
   // Login user
-  async loginUser(email, password) {
+  async loginUser(email, password, rememberMe) {
     try {
       const user = await prisma.user.findUnique({
         where: { email }
@@ -298,9 +298,10 @@ const userService = {
       }
       
       const token = generateToken(
-     user.id,
-       user.email,
-        user.role
+        user.id,
+        user.email,
+        user.role,
+        rememberMe
       );
       
       return {
@@ -451,11 +452,11 @@ const userService = {
     }
   },
   // Update user password
-  async updatePassword(userId, newPassword) {
+  async updatePassword(email, newPassword) {
     try {
       // Check if user exists
       const existingUser = await prisma.user.findUnique({
-        where: { id: userId }
+        where: { email: email }
       });
       
       if (!existingUser) {
@@ -467,7 +468,7 @@ const userService = {
       
       // Update user password
       const updatedUser = await prisma.user.update({
-        where: { id: userId },
+        where: { email: email },
         data: { password: hashedPassword },
         select: {
           id: true,

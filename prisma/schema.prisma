@@ -28,6 +28,7 @@ model User {
   likes      Like[]
   songs       Song[]  
   orders      Order[]
+
   @@map("users")
 }
 
@@ -118,3 +119,6 @@ enum OrderStatus {
   FAILED
   REFUNDED
 }
+
+
+

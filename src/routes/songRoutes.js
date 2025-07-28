@@ -13,6 +13,9 @@ const router = express.Router();
 router.get('/published', songController.getPublishedSongs); // Get published songs for public
 router.get('/published/:id', songController.getSongById); // Get specific published song
 
+//new relize song
+router.get('/new-releases', songController.getNewReleases); // Get new releases
+
 // Protected routes (require authentication)
 router.use(verifyToken); // Apply middleware to all routes below
 

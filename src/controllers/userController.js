@@ -131,17 +131,19 @@ const userController = {
   // Login user
   async loginUser(req, res) {
     try {
-      const { email, password } = req.body;
-      
+      const { email, password, rememberMe=false } = req.body; // Destructure email, password, and rememberMe from request body
+
+      console.log('Login attempt:', { email, rememberMe });
+
       if (!email || !password) {
         return res.status(400).json({
           success: false,
           message: 'Email and password are required'
         });
       }
-      
-      const result = await userService.loginUser(email, password);
-      
+
+      const result = await userService.loginUser(email, password, rememberMe);
+
       res.status(200).json({
         success: true,
         message: 'Login successful',
@@ -265,7 +267,7 @@ const userController = {
   // Update user password
   async updatePassword(req, res) {
     try {
-      const { newPassword } = req.body;
+      const { email,newPassword } = req.body;
 
       if (!newPassword) {
         return res.status(400).json({
@@ -274,7 +276,7 @@ const userController = {
         });
       }
 
-      const user = await userService.updatePassword(req.user.id, newPassword);
+      const user = await userService.updatePassword(email, newPassword);
 
       res.status(200).json({
         success: true,

@@ -379,6 +379,25 @@ async getSongStats(req, res) {
       message: error.message
     });
   }
+},
+async getNewReleases(req, res) {
+  try {
+    const { page = 1, limit = 100 } = req.query;
+    
+    const result = await songService.getNewReleases(page, limit);
+    
+    res.status(200).json({
+      success: true,
+      message: 'New releases fetched successfully',
+      data: result.songs,
+      pagination: result.pagination
+    });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
+  }
 }
 };
 
