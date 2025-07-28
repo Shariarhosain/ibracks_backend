@@ -27,14 +27,14 @@ const userService = {
       if (existingUser) {
         throw new AppError('User with this email already exists', 400);
       }
-      // uid check available
-      const existingUid = await prisma.user.findUnique({
-        where: { uid }
-      });
-      if (existingUid) {
-        throw new AppError('User with this uid already exists', 400);
+      // // uid check available
+      // const existingUid = await prisma.user.findUnique({
+      //   where: { uid }
+      // });
+      // if (existingUid) {
+      //   throw new AppError('User with this uid already exists', 400);
 
-      } 
+      // } 
 
       // Hash password if provided
       let hashedPassword = null;
@@ -59,7 +59,7 @@ const userService = {
           email,
           password: hashedPassword,
           role: role || 'user',
-          uid,
+          //uid,
           // Image will be updated in background
           profileImage: null,
           profileImageFilename: null
