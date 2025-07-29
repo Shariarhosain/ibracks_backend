@@ -16,6 +16,7 @@ const __dirname = path.dirname(__filename);
 import userRouter from './routes/userRoute.js';
 import songRouter from './routes/songRoutes.js';
 import paymentRouter from './routes/paymentRoutes.js';
+import licenseRouter from './routes/licenseRoutes.js';
 
 
 const app = express();
@@ -45,6 +46,7 @@ app.get('/', (req, res) => {
 app.use('/api/users', userRouter);
 app.use('/api/songs', songRouter);
 app.use('/api/payments', paymentRouter);
+app.use('/api/licenses', licenseRouter);
 
 
 // if other mean which i not declare then say hi hackers

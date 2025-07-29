@@ -9,69 +9,70 @@ const paymentService = {
   // Create a new order/payment
   async createOrder(orderData) {
     try {
-      const { userId, songId, paymentMethod, amount, transactionId, metadata } = orderData;
+      const { userId, songId, licenseId, paymentMethod, transactionId, metadata } = orderData;
 
-      console.log('Creating order for user:', { userId, songId });
+      console.log('Creating order for user:', { userId, songId, licenseId });
 
-      // Verify song exists and get pricing
+      // 1. Verify song exists
       const song = await prisma.song.findUnique({
         where: { id: songId },
-        select: {
-          id: true,
-          title: true,
-          pricing: true,
-          status: true,
-          userId: true
-        }
+        select: { id: true, title: true, pricing: true, status: true, userId: true }
       });
 
       if (!song) {
         throw new AppError('Song not found', 404);
       }
-
-      console.log('Found song:', song);
-
       if (song.status !== 'PUBLISHED') {
         throw new AppError('Song is not available for purchase', 400);
       }
-
-      // Check if user is trying to buy their own song
       if (song.userId === userId) {
         throw new AppError('You cannot purchase your own song', 400);
       }
 
-      // Check if user already owns this song
+      // 2. Check for existing ownership
       const existingOrder = await prisma.order.findFirst({
-        where: {
-          userId,
-          songId,
-          status: 'ACCEPTED'
-        }
+        where: { userId, songId, status: 'ACCEPTED' }
       });
-
       if (existingOrder) {
         throw new AppError('You already own this song', 400);
       }
 
-      // Use song pricing if amount is not provided
-      const orderAmount = amount || song.pricing;
+      let orderAmount;
+      let licenseDetails = {};
 
-      if (!orderAmount || orderAmount <= 0) {
-        throw new AppError('Invalid order amount', 400);
-      }
-
-      // Check for duplicate transaction ID if provided
-      if (transactionId) {
-        const existingTransaction = await prisma.order.findUnique({
-          where: { transactionId }
+      // 3. Handle License Pack
+      if (licenseId) {
+        const licensePack = await prisma.licensePack.findUnique({
+          where: { id: licenseId },
         });
 
-        if (existingTransaction) {
-          throw new AppError('Transaction ID already exists', 400);
+        if (!licensePack) {
+          throw new AppError('License pack not found', 404);
+        }
+
+        orderAmount = licensePack.price;
+        // Prepare denormalized license data to be stored on the order
+        licenseDetails = {
+          licensePackId: licensePack.id,
+          licensePackPrice: licensePack.price,
+          description: licensePack.description,
+          features: licensePack.features,
+        };
+      } else {
+        // Fallback to song's base price if no license is selected
+        orderAmount = song.pricing;
+        licenseDetails = {
+          description: "Standard Song License",
+          features: [] // Default empty features array
         }
       }
 
-      // Create order
+      // 4. Validate final order amount
+      if (typeof orderAmount !== 'number' || orderAmount <= 0) {
+        throw new AppError('Invalid order amount. A valid license or song price is required.', 400);
+      }
+
+      // 5. Create the Order with all details
       const order = await prisma.order.create({
         data: {
           userId,
@@ -81,28 +82,15 @@ const paymentService = {
           transactionId,
           metadata: metadata || {},
           status: 'ACCEPTED',
+          ...licenseDetails, // Spread the denormalized license info
         },
         include: {
-          song: {
-            select: {
-              id: true,
-              title: true,
-              pricing: true,
-              coverImage: true
-            }
-          },
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          }
+          song: { select: { id: true, title: true, pricing: true, coverImage: true } },
+          user: { select: { id: true, name: true, email: true } }
         }
       });
 
       console.log('Order created successfully:', order.id);
-
       return order;
     } catch (error) {
       console.error('Error creating order:', error);

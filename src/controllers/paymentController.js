@@ -7,8 +7,8 @@ const paymentController = {
   // Create new order
   async createOrder(req, res, next) {
     try {
-      const { songId, paymentMethod, amount, transactionId, metadata } = req.body;
-      
+      const { songId, paymentMethod, amount, transactionId, metadata, licenseId } = req.body;
+
       const userId = req.user.id;
 
       // Validate required fields
@@ -22,6 +22,7 @@ const paymentController = {
       const order = await paymentService.createOrder({
         userId,
         songId,
+        licenseId,
         paymentMethod,
         amount,
         transactionId,

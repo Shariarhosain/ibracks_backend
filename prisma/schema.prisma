@@ -104,7 +104,12 @@ model Order {
   // Relations
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   song        Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
-  
+
+  // Add relation to LicensePack
+  licensePackId String?
+  licensePackPrice Float?
+  description String?
+  features String[] // Features of the license pack
   // Timestamps
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -121,4 +126,13 @@ enum OrderStatus {
 }
 
 
-
+model LicensePack {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  price       Float
+  description String
+  features    String[] 
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@map("license_packs")
+}
