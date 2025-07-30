@@ -14,59 +14,60 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  name        String
-  phoneNumber String?  @map("phone_number")
-  email       String   @unique
-  password    String?
-  role        String   @default("user")
-  uid         String?  @unique
-  profileImage String? @map("profile_image") // URL of the profile image
-  profileImageFilename String? @map("profile_image_filename") // Filename for deletion
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  likes      Like[]
-  songs       Song[]  
-  orders      Order[]
+  id                   String    @id @default(cuid())
+  name                 String
+  phoneNumber          String?   @map("phone_number")
+  email                String    @unique
+  password             String?
+  role                 String    @default("user")
+  uid                  String?   @unique
+  profileImage         String?   @map("profile_image")
+  profileImageFilename String?   @map("profile_image_filename")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  likes                Like[]
+  songs                Song[]
+  orders               Order[]
 
   @@map("users")
 }
 
 model Song {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  musicTag    String?
-  pricing     Float    @default(0.00)
-  duration    String   @default("00:00")
-  bpm         Int?
-  
-  // File URLs and filenames
-  audioFile   String?
-  audioFilename String?
-  coverImage  String?
-  coverImageFilename String?
+  id                   String     @id @default(cuid())
+  title                String
+  description          String?
+  musicTag             String?
+  pricing              Float      @default(0.00)
+  duration             String     @default("00:00")
+  bpm                  Int?
+  audioFile            String?
+  audioFilename        String?
+  coverImage           String?
+  coverImageFilename   String?
   
   // Publishing and status
-  status      SongStatus @default(DRAFT)
-  publishAt   DateTime?
-  publishedAt DateTime?
+  status               SongStatus @default(DRAFT)
+  publishAt            DateTime?
+  publishedAt          DateTime?
   
   // Relations
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId               String
+  user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+  
   // Add these new fields
-  playCount   Int      @default(0)
-  likeCount   Int      @default(0)
+  playCount            Int        @default(0)
+  likeCount            Int        @default(0)
   
   // Add relation to likes
-  likes       Like[]
-  orders      Order[]
+  likes                Like[]
   
+  // Relation to the items in an order
+  orderItems           OrderItem[]
+
   @@map("songs")
 }
 
@@ -90,29 +91,23 @@ model Like {
   @@map("likes")
 }
 
-
 model Order {
-  id          String   @id @default(cuid())
-  userId      String
-  songId      String
-  amount      Float?
-  status      OrderStatus @default(PENDING)
+  id            String      @id @default(cuid())
+  userId        String
+  amount        Float?
+  status        OrderStatus @default(PENDING)
   paymentMethod String?
-  transactionId String? @unique
-  metadata    Json?    // Additional payment data
+  transactionId String?     @unique
+  metadata      Json?       // Additional payment data
   
   // Relations
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  song        Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // A single order can have multiple items
+  items         OrderItem[]
 
-  // Add relation to LicensePack
-  licensePackId String?
-  licensePackPrice Float?
-  description String?
-  features String[] // Features of the license pack
-  // Timestamps
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
   
   @@map("orders")
 }
@@ -125,14 +120,29 @@ enum OrderStatus {
   REFUNDED
 }
 
-
 model LicensePack {
   id          String   @id @default(cuid())
   name        String   @unique
   price       Float
   description String
-  features    String[] 
+  features    String[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
   @@map("license_packs")
+}
+
+model OrderItem {
+  id                      String   @id @default(cuid())
+  orderId                 String
+  songId                  String
+  licenseId               String?    // The ID of the license pack purchased
+  priceAtTimeOfPurchase   Float      // Store the price to avoid issues if song/license price changes later
+  licenseDetails          Json?      // Store denormalized license info
+
+  // Relations
+  order                   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  song                    Song     @relation(fields: [songId], references: [id], onDelete: Restrict) // Prevent song deletion if it's in an order
+
+  @@map("order_items")
 }

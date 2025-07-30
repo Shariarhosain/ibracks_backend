@@ -5,43 +5,42 @@ import AppError from '../utils/error.js';
 
 const paymentController = {
   // Create new order
-  async createOrder(req, res, next) {
+ async createOrder(req, res, next) {
     try {
-      const { songId, paymentMethod, amount, transactionId, metadata, licenseId } = req.body;
+      // 1. Extract the 'orderDetails' array and other payment info from the request body.
+      const { orderDetails, paymentMethod, transactionId, metadata } = req.body;
+      
+      // 2. Get the user ID from the authenticated request.
+      const userId = req.user.id; 
 
-      const userId = req.user.id;
-
-      // Validate required fields
-      if (!songId) {
+      // 3. Validate the incoming data. We now check for the 'orderDetails' array.
+      if (!orderDetails || !Array.isArray(orderDetails) || orderDetails.length === 0) {
         return res.status(400).json({
           success: false,
-          message: 'Song ID is required'
+          message: 'The "orderDetails" array is required and cannot be empty.',
         });
       }
 
+      // 4. Call the payment service with the entire data object.
+      // The service is already designed to handle this structure.
       const order = await paymentService.createOrder({
         userId,
-        songId,
-        licenseId,
+        orderDetails,
         paymentMethod,
-        amount,
         transactionId,
-        metadata
+        metadata,
       });
 
+      // 5. Send a successful response.
+      // The response now includes the full order with its list of items.
       res.status(201).json({
         success: true,
         message: 'Order created successfully',
-        order: {
-          id: order.id,
-          songId: order.songId,
-          amount: order.amount,
-          status: order.status,
-          createdAt: order.createdAt
-        }
+        order, // Return the complete order object
       });
+
     } catch (error) {
-      next(error); // Pass error to global error handler
+      next(error); // Pass any errors to your global error handler.
     }
   },
 
@@ -135,6 +134,8 @@ async get30DaySalesAnalyticsController(req, res, next) {
     next(error);
   }
 },
+
+
 async getCustomDateRangeSalesAnalyticsController(req, res, next) {
   try {
     const { startDate, endDate } = req.query;
