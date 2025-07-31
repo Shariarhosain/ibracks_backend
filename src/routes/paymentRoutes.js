@@ -21,6 +21,8 @@ router.get('/analytics/monthly/30days', verifyToken, paymentController.get30DayS
 router.get('/analytics/sales-custom-range', verifyToken, paymentController.getCustomDateRangeSalesAnalyticsController);
 router.get('/analytics/sales-monthly', verifyToken, paymentController.getMonthlySalesAnalyticsController);
 router.get('/analytics/weekly', verifyToken, paymentController.getWeeklyRevenueAnalytics);
+//12 monthly analytics
+router.get('/analytics/12-monthly', verifyToken, paymentController.get12MonthlySalesAnalyticsController);
 router.get('/analytics/dashboard', verifyToken, paymentController.getAnalyticsDashboard);
 
 router.post('/orders/:orderId/refund', verifyToken, paymentController.processRefund);

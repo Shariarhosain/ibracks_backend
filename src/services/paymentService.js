@@ -420,6 +420,15 @@ const paymentService = {
       endOfWeek.setDate(startOfWeek.getDate() + 6);
       endOfWeek.setHours(23, 59, 59, 999);
 
+      // Previous week calculation
+      const prevWeekStart = new Date(startOfWeek);
+      prevWeekStart.setDate(startOfWeek.getDate() - 7);
+      prevWeekStart.setHours(0, 0, 0, 0);
+      const prevWeekEnd = new Date(prevWeekStart);
+      prevWeekEnd.setDate(prevWeekStart.getDate() + 6);
+      prevWeekEnd.setHours(23, 59, 59, 999);
+
+      // Current week items
       const currentWeekItems = await prisma.orderItem.findMany({
         where: {
           order: {
@@ -430,8 +439,27 @@ const paymentService = {
         include: { order: true }
       });
 
+      // Previous week items
+      const previousWeekItems = await prisma.orderItem.findMany({
+        where: {
+          order: {
+            status: { in: ['ACCEPTED', 'COMPLETED'] },
+            updatedAt: { gte: prevWeekStart, lte: prevWeekEnd }
+          }
+        }
+      });
+
       const currentWeekRevenue = currentWeekItems.reduce((sum, item) => sum + item.priceAtTimeOfPurchase, 0);
       const currentWeekSales = currentWeekItems.length;
+      const previousWeekRevenue = previousWeekItems.reduce((sum, item) => sum + item.priceAtTimeOfPurchase, 0);
+      const previousWeekSales = previousWeekItems.length;
+
+      const revenueChange = previousWeekRevenue > 0
+        ? ((currentWeekRevenue - previousWeekRevenue) / previousWeekRevenue) * 100
+        : currentWeekRevenue > 0 ? 100 : 0;
+      const purchasesChange = previousWeekSales > 0
+        ? ((currentWeekSales - previousWeekSales) / previousWeekSales) * 100
+        : currentWeekSales > 0 ? 100 : 0;
 
       const dailyBreakdown = Array.from({ length: 7 }, (_, i) => {
         const day = new Date(startOfWeek);
@@ -445,28 +473,121 @@ const paymentService = {
       });
 
       currentWeekItems.forEach(item => {
-        const dayIndex = new Date(item.order.updatedAt).getDay();
-        const adjustedIndex = (dayIndex + 6) % 7; // Monday is 0
-        dailyBreakdown[adjustedIndex].revenue += item.priceAtTimeOfPurchase;
-        dailyBreakdown[adjustedIndex].sales++;
+        const orderDate = new Date(item.order.updatedAt);
+        const dayIndex = (orderDate.getDay() + 6) % 7; // Monday is 0
+        dailyBreakdown[dayIndex].revenue += item.priceAtTimeOfPurchase;
+        dailyBreakdown[dayIndex].sales++;
       });
-      
+
       return {
         weekPeriod: {
           start: startOfWeek.toISOString().split('T')[0],
           end: endOfWeek.toISOString().split('T')[0]
         },
-        currentWeek: {
+        summary: {
           totalRevenue: Number(currentWeekRevenue.toFixed(2)),
-          totalSales: currentWeekSales,
+          totalPurchases: currentWeekSales,
+          revenueChange: Number(revenueChange.toFixed(2)),
+          purchasesChange: Number(purchasesChange.toFixed(2))
         },
         dailyBreakdown,
+        previousWeek: {
+          totalRevenue: Number(previousWeekRevenue.toFixed(2)),
+          totalPurchases: previousWeekSales
+        }
       };
     } catch (error) {
       console.error('Error fetching weekly revenue analytics:', error);
       throw new AppError('Failed to fetch weekly revenue analytics', 500);
     }
   },
+
+// Get 12-monthly sales analytics like January
+async get12MonthlySalesAnalytics() {
+  try {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthIndex = now.getMonth(); // 0 for Jan, 1 for Feb, etc.
+    
+    const monthlyStats = [];
+    let yearlyTotalRevenue = 0;
+    let yearlyTotalPurchases = 0;
+
+    for (let month = 0; month < 12; month++) {
+      const startDate = new Date(currentYear, month, 1);
+      // Skip future months for which there is no data yet
+      if (month > currentMonthIndex) {
+        monthlyStats.push({
+          month: startDate.toLocaleString('default', { month: 'long' }),
+          totalRevenue: 0,
+          totalPurchases: 0
+        });
+        continue; // Go to the next iteration
+      }
+
+      const endDate = new Date(currentYear, month + 1, 0);
+      endDate.setHours(23, 59, 59, 999);
+
+      const orders = await prisma.order.findMany({
+        where: {
+          status: { in: ['ACCEPTED', 'COMPLETED'] },
+          updatedAt: { gte: startDate, lte: endDate }
+        }
+      });
+
+      const totalRevenue = orders.reduce((sum, order) => sum + (order.amount || 0), 0);
+      const totalPurchases = orders.length;
+
+      // Add to yearly totals
+      yearlyTotalRevenue += totalRevenue;
+      yearlyTotalPurchases += totalPurchases;
+
+      monthlyStats.push({
+        month: startDate.toLocaleString('default', { month: 'long' }),
+        totalRevenue: Number(totalRevenue.toFixed(2)),
+        totalPurchases
+      });
+    }
+
+    // --- Calculate Summary Statistics After the Loop ---
+
+    let revenueChange = 0;
+    let purchasesChange = 0;
+
+    // Ensure there is a previous month to compare against
+    if (currentMonthIndex > 0) {
+      const currentMonthData = monthlyStats[currentMonthIndex];
+      const previousMonthData = monthlyStats[currentMonthIndex - 1];
+
+      // Calculate Revenue Change Percentage
+      if (previousMonthData.totalRevenue > 0) {
+        revenueChange = ((currentMonthData.totalRevenue - previousMonthData.totalRevenue) / previousMonthData.totalRevenue) * 100;
+      } else if (currentMonthData.totalRevenue > 0) {
+        revenueChange = 100; // From 0 to a positive number is a 100% increase
+      }
+
+      // Calculate Purchases Change Percentage
+      if (previousMonthData.totalPurchases > 0) {
+        purchasesChange = ((currentMonthData.totalPurchases - previousMonthData.totalPurchases) / previousMonthData.totalPurchases) * 100;
+      } else if (currentMonthData.totalPurchases > 0) {
+        purchasesChange = 100;
+      }
+    }
+
+    const summary = {
+      totalRevenue: Number(yearlyTotalRevenue.toFixed(2)),
+      totalPurchases: yearlyTotalPurchases,
+      revenueChange: Number(revenueChange.toFixed(2)),
+      purchasesChange: Number(purchasesChange.toFixed(2))
+    };
+
+    return { summary, monthlyStats };
+
+  } catch (error) {
+    console.error('Error fetching 12-monthly sales analytics:', error);
+    throw new AppError('Failed to fetch 12-monthly sales analytics', 500);
+  }
+},
 
  async getMonthlySalesAnalytics(year, month) {
     try {

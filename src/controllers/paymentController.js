@@ -198,33 +198,55 @@ async getMonthlySalesAnalyticsController(req, res, next) {
 },
 
 
-  // Get weekly revenue analytics
-  async getWeeklyRevenueAnalytics(req, res, next) {
-    try {
-      const { weekStart } = req.query;
-      let weekStartDate = null;
+ // Get weekly revenue analytics
+async getWeeklyRevenueAnalytics(req, res, next) {
+  try {
+    const { weekStart } = req.query;
+    let weekStartDate;
 
-      // Validate weekStart if provided
-      if (weekStart) {
-        weekStartDate = new Date(weekStart);
-        if (isNaN(weekStartDate.getTime())) {
-          return res.status(400).json({
-            success: false,
-            message: 'Invalid week start date format'
-          });
-        }
+    if (weekStart) {
+      // If a weekStart is provided, validate and use it
+      weekStartDate = new Date(weekStart);
+      if (isNaN(weekStartDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid week start date format'
+        });
       }
-
-      const analytics = await paymentService.getWeeklyRevenueAnalytics(weekStartDate);
-
-      res.status(200).json({
-        success: true,
-        analytics
-      });
-    } catch (error) {
-      next(error);
+    } else {
+      // If no weekStart is provided, calculate the start of the current week
+      const today = new Date();
+      // Assuming the week starts on Sunday (day 0)
+      const firstDayOfWeek = today.getDate() - today.getDay();
+      weekStartDate = new Date(today.setDate(firstDayOfWeek));
+      // Set the time to the beginning of the day (00:00:00)
+      //weekStartDate.setHours(0, 0, 0, 0);
     }
-  },
+
+    // The rest of your logic remains the same
+    const analytics = await paymentService.getWeeklyRevenueAnalytics(weekStartDate);
+
+    res.status(200).json({
+      success: true,
+      analytics
+    });
+  } catch (error) {
+    next(error);
+  }
+},
+
+async get12MonthlySalesAnalyticsController(req, res, next) {
+  try {
+    const analytics = await paymentService.get12MonthlySalesAnalytics();
+
+    res.status(200).json({
+      success: true,
+      analytics
+    });
+  } catch (error) {
+    next(error);
+  }
+},
 
   // Get user orders
   async getUserOrders(req, res, next) {
