@@ -180,7 +180,143 @@ const paymentService = {
     };
   },
 
-  async get24HourSalesAnalytics() {
+
+// async get24HourSalesAnalytics() {
+//   try {
+//     const now = new Date();
+
+//     // Define the time periods for the query
+//     const currentPeriodEnd = new Date(now);
+//     const currentPeriodStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+//     const previousPeriodStart = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+
+//     // Fetch current period items
+//     const currentPeriodItems = await prisma.orderItem.findMany({
+//       where: {
+//         order: {
+//           status: { in: ['ACCEPTED', 'COMPLETED'] },
+//           updatedAt: { gte: currentPeriodStart, lte: currentPeriodEnd }
+//         }
+//       },
+//       include: {
+//         order: true,
+//         song: { select: { id: true, title: true } }
+//       }
+//     });
+
+//     // Fetch previous period items for comparison
+//     const previousPeriodItems = await prisma.orderItem.findMany({
+//       where: {
+//         order: {
+//           status: { in: ['ACCEPTED', 'COMPLETED'] },
+//           updatedAt: { gte: previousPeriodStart, lte: currentPeriodStart }
+//         }
+//       }
+//     });
+
+//     // --- Calculate Summary Statistics ---
+//     const currentRevenue = currentPeriodItems.reduce((sum, item) => sum + item.priceAtTimeOfPurchase, 0);
+//     const currentSalesCount = currentPeriodItems.length;
+//     const previousRevenue = previousPeriodItems.reduce((sum, item) => sum + item.priceAtTimeOfPurchase, 0);
+//     const previousSalesCount = previousPeriodItems.length;
+
+//     // Calculate percentage change, handling division by zero
+//     const revenueChange = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : (currentRevenue > 0 ? 100 : 0);
+//     const salesChange = previousSalesCount > 0 ? ((currentSalesCount - previousSalesCount) / previousSalesCount) * 100 : (currentSalesCount > 0 ? 100 : 0);
+
+//     const summary = {
+//       totalRevenue: Number(currentRevenue.toFixed(2)),
+//       totalPurchases: currentSalesCount,
+//       revenueChange: Number(revenueChange.toFixed(2)),
+//       purchasesChange: Number(salesChange.toFixed(2)),
+//     };
+
+//     // --- Calculate Sales Statistics in 3-Hour Intervals (UTC) ---
+
+//     // 1. Initialize 8 buckets for 3-hour intervals covering a full day
+//     const salesStatisticBuckets = Array.from({ length: 8 }, (_, i) => {
+//       const startHour = i * 3;
+//       const endHour = startHour + 3;
+
+//       // Helper to format hours into a 12-hour format with am/pm
+//       const formatLabelHour = (h) => {
+//         if (h === 0 || h === 24) return '12 am';
+//         if (h === 12) return '12 pm';
+//         if (h < 12) return `${h} am`;
+//         return `${h - 12} pm`;
+//       };
+      
+//       return {
+//         timeLabel: formatLabelHour(endHour), // Label is based on the end hour of the interval
+//         totalRevenue: 0,
+//         totalPurchase: 0,
+//       };
+//     });
+
+//     // 2. Aggregate sales from the last 24 hours into the buckets using local hours
+//     currentPeriodItems.forEach(item => {
+//       // Use getHours() to get the hour in local time
+//       const orderHour = new Date(item.order.updatedAt).getHours();
+//       // Determines which 3-hour bucket the sale falls into (e.g., 7am local -> bucket 2)
+//       const bucketIndex = Math.floor(orderHour / 3); 
+
+//       if (salesStatisticBuckets[bucketIndex]) {
+//           salesStatisticBuckets[bucketIndex].totalRevenue += item.priceAtTimeOfPurchase;
+//           salesStatisticBuckets[bucketIndex].totalPurchase++;
+//       }
+//     });
+
+//     // 3. Format the final revenue values to two decimal places
+//     salesStatisticBuckets.forEach(bucket => {
+//         bucket.totalRevenue = Number(bucket.totalRevenue.toFixed(2));
+//     });
+
+//     // 4. Reorder buckets to create a rolling 24-hour view based on current local time
+//     // Use getHours() for consistency to determine the current time bucket in local time
+//     const currentBucketIndex = Math.floor(now.getHours() / 3);
+//     const salesStatistic = [];
+//     for (let i = 0; i < 8; i++) {
+//         // Start from the next bucket and loop around
+//         const bucketIndex = (currentBucketIndex + i + 1) % 8;
+//         salesStatistic.push(salesStatisticBuckets[bucketIndex]);
+//     }
+
+//     // --- Calculate Top Selling Songs ---
+//     const songSales = currentPeriodItems.reduce((acc, item) => {
+//       if (!item.songId) return acc; // Skip if songId is null
+
+//       if (!acc[item.songId]) {
+//         acc[item.songId] = {
+//           songId: item.songId,
+//           songTitle: item.song?.title || 'Unknown Song',
+//           count: 0,
+//           revenue: 0,
+//         };
+//       }
+//       acc[item.songId].count++;
+//       acc[item.songId].revenue += item.priceAtTimeOfPurchase;
+//       return acc;
+//     }, {});
+
+//     const topSongs = Object.values(songSales)
+//       .sort((a, b) => b.count - a.count)
+//       .slice(0, 10);
+
+//     // --- Return Final Analytics Object ---
+//     return {
+//       summary,
+//       salesStatistic,
+//       topSongs,
+//     };
+
+//   } catch (error) {
+//     console.error('Error fetching 24-hour sales analytics:', error);
+//     // Assuming AppError is a custom error class you have defined elsewhere
+//     throw new AppError('Failed to fetch 24-hour sales analytics', 500);
+//   }
+// },
+
+ async get24HourSalesAnalytics() {
     try {
       const now = new Date();
       const currentPeriodEnd = new Date(now);
@@ -263,71 +399,89 @@ const paymentService = {
     }
   },
 
+
     async get30DaySalesAnalytics() {
-    try {
-      const now = new Date();
-      const currentPeriodEnd = new Date(now);
-      const currentPeriodStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const previousPeriodStart = new Date(currentPeriodStart.getTime() - 30 * 24 * 60 * 60 * 1000);
+      try {
+        const now = new Date();
+        const currentPeriodEnd = new Date(now);
+        const currentPeriodStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const previousPeriodStart = new Date(currentPeriodStart.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-      const currentPeriodOrders = await prisma.order.findMany({
-        where: {
-          status: { in: ['ACCEPTED', 'COMPLETED'] },
-          updatedAt: { gte: currentPeriodStart, lte: currentPeriodEnd },
-        },
-      });
+        const currentPeriodOrders = await prisma.order.findMany({
+          where: {
+            status: { in: ['ACCEPTED', 'COMPLETED'] },
+            updatedAt: { gte: currentPeriodStart, lte: currentPeriodEnd },
+          },
+        });
 
-      const previousPeriodOrders = await prisma.order.findMany({
-        where: {
-          status: { in: ['ACCEPTED', 'COMPLETED'] },
-          updatedAt: { gte: previousPeriodStart, lte: currentPeriodStart },
-        },
-      });
+        const previousPeriodOrders = await prisma.order.findMany({
+          where: {
+            status: { in: ['ACCEPTED', 'COMPLETED'] },
+            updatedAt: { gte: previousPeriodStart, lte: currentPeriodStart },
+          },
+        });
 
-      const currentRevenue = currentPeriodOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
-      const currentSalesCount = currentPeriodOrders.length;
-      const previousRevenue = previousPeriodOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
-      const previousSalesCount = previousPeriodOrders.length;
+        const currentRevenue = currentPeriodOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+        const currentSalesCount = currentPeriodOrders.length;
+        const previousRevenue = previousPeriodOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+        const previousSalesCount = previousPeriodOrders.length;
 
-      const revenueChange = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : currentRevenue > 0 ? 100 : 0;
-      const salesChange = previousSalesCount > 0 ? ((currentSalesCount - previousSalesCount) / previousSalesCount) * 100 : currentSalesCount > 0 ? 100 : 0;
+        const revenueChange = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : currentRevenue > 0 ? 100 : 0;
+        const salesChange = previousSalesCount > 0 ? ((currentSalesCount - previousSalesCount) / previousSalesCount) * 100 : currentSalesCount > 0 ? 100 : 0;
 
-      const weeklyStats = Array.from({ length: 4 }, (_, i) => ({
-        week: `Week ${i + 1}`,
-        totalRevenue: 0,
-        totalPurchase: 0,
-      }));
+        // Calculate number of weeks in the 30-day period
+        const totalDays = Math.ceil((currentPeriodEnd - currentPeriodStart) / (1000 * 60 * 60 * 24));
+        const numberOfWeeks = Math.ceil(totalDays / 7);
 
-      currentPeriodOrders.forEach(order => {
-        const daysAgo = (currentPeriodEnd.getTime() - new Date(order.updatedAt).getTime()) / (1000 * 3600 * 24);
-        // This logic correctly groups the last 30 days into four weeks.
-        // Week 4 (most recent): days 0-6 ago
-        // Week 3: days 7-13 ago
-        // Week 2: days 14-20 ago
-        // Week 1: days 21-29 ago
-        if (daysAgo < 30) {
-          const weekIndex = 3 - Math.floor(daysAgo / 7);
-          if (weekIndex >= 0 && weekIndex < 4) {
+        // Create weekly buckets
+        const weeklyStats = [];
+        
+        for (let i = 0; i < numberOfWeeks; i++) {
+          const weekStart = new Date(currentPeriodStart.getTime() + (i * 7 * 24 * 60 * 60 * 1000));
+          const weekEnd = new Date(Math.min(
+            weekStart.getTime() + (6 * 24 * 60 * 60 * 1000),
+            currentPeriodEnd.getTime()
+          ));
+
+          weeklyStats.push({
+            week: `Week ${i + 1}`,
+            dateRange: `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+            totalRevenue: 0,
+            totalPurchase: 0,
+          });
+        }
+
+        // Assign orders to appropriate weeks
+        currentPeriodOrders.forEach(order => {
+          const orderDate = new Date(order.updatedAt);
+          const daysFromStart = Math.floor((orderDate - currentPeriodStart) / (1000 * 60 * 60 * 24));
+          const weekIndex = Math.floor(daysFromStart / 7);
+          
+          if (weekIndex >= 0 && weekIndex < weeklyStats.length) {
             weeklyStats[weekIndex].totalRevenue += order.amount || 0;
             weeklyStats[weekIndex].totalPurchase++;
           }
-        }
-      });
-      
-      return {
-        summary: {
-          totalRevenue: Number(currentRevenue.toFixed(2)),
-          totalPurchases: currentSalesCount,
-          revenueChange: Number(revenueChange.toFixed(2)),
-          purchasesChange: Number(salesChange.toFixed(2)),
-        },
-        salesStatistic: weeklyStats,
-      };
-    } catch (error) {
-      console.error('Error fetching 30-day sales analytics:', error);
-      throw new AppError('Failed to fetch 30-day sales analytics', 500);
-    }
-  },
+        });
+
+        // Round revenue values
+        weeklyStats.forEach(week => {
+          week.totalRevenue = Number(week.totalRevenue.toFixed(2));
+        });
+        
+        return {
+          summary: {
+            totalRevenue: Number(currentRevenue.toFixed(2)),
+            totalPurchases: currentSalesCount,
+            revenueChange: Number(revenueChange.toFixed(2)),
+            purchasesChange: Number(salesChange.toFixed(2)),
+          },
+          salesStatistic: weeklyStats,
+        };
+      } catch (error) {
+        console.error('Error fetching 30-day sales analytics:', error);
+        throw new AppError('Failed to fetch 30-day sales analytics', 500);
+      }
+    },
 
 
   async getCustomDateRangeSalesAnalytics(startDateISO, endDateISO) {
@@ -589,55 +743,119 @@ async get12MonthlySalesAnalytics() {
   }
 },
 
- async getMonthlySalesAnalytics(year, month) {
-    try {
-      const monthIndex = month - 1;
-      const startDate = new Date(year, monthIndex, 1);
-      const endDate = new Date(year, monthIndex + 1, 0);
-      endDate.setHours(23, 59, 59, 999);
-  
-      const currentMonthOrders = await prisma.order.findMany({
-        where: {
-          status: { in: ['ACCEPTED', 'COMPLETED'] },
-          updatedAt: { gte: startDate, lte: endDate },
-        },
-      });
-      
-      const currentRevenue = currentMonthOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
-      const currentSalesCount = currentMonthOrders.length;
-      
-      // Dynamically determine the number of weeks in the month
-      const daysInMonth = endDate.getDate();
-      const numWeeks = Math.ceil(daysInMonth / 7);
 
-      // Initialize the array with the correct number of weeks
-      const weeklyStats = Array.from({ length: numWeeks }, (_, i) => ({
-        week: `Week ${i + 1}`, totalRevenue: 0, totalPurchase: 0
-      }));
-  
-      currentMonthOrders.forEach(order => {
-        const dayOfMonth = new Date(order.updatedAt).getDate();
-        // This logic correctly assigns days 1-7 to weekIndex 0, 8-14 to 1, etc.
-        const weekIndex = Math.floor((dayOfMonth - 1) / 7);
+async getMonthlySalesAnalytics(year, month) {
+  try {
+    const monthIndex = month - 1;
+    const startDate = new Date(year, monthIndex, 1);
+    const endDate = new Date(year, monthIndex + 1, 0);
+    endDate.setHours(23, 59, 59, 999);
+
+    // Previous month for comparison
+    const prevMonthStart = monthIndex === 0 
+      ? new Date(year - 1, 11, 1) 
+      : new Date(year, monthIndex - 1, 1);
+    const prevMonthEnd = new Date(prevMonthStart.getFullYear(), prevMonthStart.getMonth() + 1, 0);
+    prevMonthEnd.setHours(23, 59, 59, 999);
+
+    const currentMonthOrders = await prisma.order.findMany({
+      where: {
+        status: { in: ['ACCEPTED', 'COMPLETED'] },
+        updatedAt: { gte: startDate, lte: endDate },
+      },
+    });
+
+    const previousMonthOrders = await prisma.order.findMany({
+      where: {
+        status: { in: ['ACCEPTED', 'COMPLETED'] },
+        updatedAt: { gte: prevMonthStart, lte: prevMonthEnd },
+      },
+    });
+    
+    const currentRevenue = currentMonthOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+    const currentSalesCount = currentMonthOrders.length;
+    const previousRevenue = previousMonthOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+    const previousSalesCount = previousMonthOrders.length;
+
+    const revenueChange = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : currentRevenue > 0 ? 100 : 0;
+    const purchasesChange = previousSalesCount > 0 ? ((currentSalesCount - previousSalesCount) / previousSalesCount) * 100 : currentSalesCount > 0 ? 100 : 0;
+    
+    // Calculate weeks - simplified approach
+    const weeklyStats = [];
+    const weekBoundaries = [];
+    
+    // Find the first Monday on or before the month start
+    const firstDay = new Date(year, monthIndex, 1);
+    const firstDayOfWeek = firstDay.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    let currentWeekStart = new Date(firstDay);
+    // Adjust to get the Monday of the week containing the first day
+    const daysToSubtract = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
+    currentWeekStart.setDate(firstDay.getDate() - daysToSubtract);
+    
+    let weekNumber = 1;
+
+    // Generate week boundaries
+    while (currentWeekStart <= endDate) {
+      const weekEnd = new Date(currentWeekStart);
+      weekEnd.setDate(currentWeekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+      
+      // Only include weeks that overlap with the current month
+      if (weekEnd >= startDate) {
+        const displayStart = new Date(Math.max(currentWeekStart.getTime(), startDate.getTime()));
+        const displayEnd = new Date(Math.min(weekEnd.getTime(), endDate.getTime()));
         
-        if (weekIndex < numWeeks) { 
-          weeklyStats[weekIndex].totalRevenue += order.amount || 0;
-          weeklyStats[weekIndex].totalPurchase++;
-        }
-      });
-  
-      return {
-        summary: {
-          totalRevenue: Number(currentRevenue.toFixed(2)),
-          totalPurchases: currentSalesCount,
-        },
-        salesStatistic: weeklyStats,
-      };
-    } catch (error) {
-      console.error('Error fetching monthly sales analytics:', error);
-      throw new AppError('Failed to fetch monthly sales analytics', 500);
+        weekBoundaries.push({
+          start: new Date(currentWeekStart),
+          end: new Date(weekEnd)
+        });
+        
+        weeklyStats.push({
+          week: `Week ${weekNumber}`,
+          dateRange: `${displayStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${displayEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+          totalRevenue: 0,
+          totalPurchase: 0,
+        });
+        weekNumber++;
+      }
+      
+      currentWeekStart.setDate(currentWeekStart.getDate() + 7);
     }
-  },
+
+    // Assign orders to weeks
+    currentMonthOrders.forEach(order => {
+      const orderDate = new Date(order.updatedAt);
+      
+      // Find the correct week for this order
+      for (let i = 0; i < weekBoundaries.length; i++) {
+        if (orderDate >= weekBoundaries[i].start && orderDate <= weekBoundaries[i].end) {
+          weeklyStats[i].totalRevenue += order.amount || 0;
+          weeklyStats[i].totalPurchase++;
+          break;
+        }
+      }
+    });
+
+    // Round revenue values
+    weeklyStats.forEach(week => {
+      week.totalRevenue = Number(week.totalRevenue.toFixed(2));
+    });
+
+    return {
+      summary: {
+        totalRevenue: Number(currentRevenue.toFixed(2)),
+        totalPurchases: currentSalesCount,
+        revenueChange: Number(revenueChange.toFixed(2)),
+        purchasesChange: Number(purchasesChange.toFixed(2))
+      },
+      salesStatistic: weeklyStats,
+    };
+  } catch (error) {
+    console.error('Error fetching monthly sales analytics:', error);
+    throw new AppError('Failed to fetch monthly sales analytics', 500);
+  }
+},
 
   // Get user's orders
   async getUserOrders(userId, page = 1, limit = 10) {
