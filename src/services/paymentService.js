@@ -744,92 +744,99 @@ async get12MonthlySalesAnalytics() {
 },
 
 
-async getMonthlySalesAnalytics(year, month) {
+async  getMonthlySalesAnalytics(year, month) {
   try {
+    // 1. Determine the date range for the requested month
     const monthIndex = month - 1;
     const startDate = new Date(year, monthIndex, 1);
     const endDate = new Date(year, monthIndex + 1, 0);
     endDate.setHours(23, 59, 59, 999);
 
-    // Previous month for comparison
-    const prevMonthStart = monthIndex === 0 
-      ? new Date(year - 1, 11, 1) 
-      : new Date(year, monthIndex - 1, 1);
-    const prevMonthEnd = new Date(prevMonthStart.getFullYear(), prevMonthStart.getMonth() + 1, 0);
+    // 2. Determine the previous month range for comparison
+    const prevMonthStart =
+      monthIndex === 0
+        ? new Date(year - 1, 11, 1)
+        : new Date(year, monthIndex - 1, 1);
+    const prevMonthEnd = new Date(
+      prevMonthStart.getFullYear(),
+      prevMonthStart.getMonth() + 1,
+      0
+    );
     prevMonthEnd.setHours(23, 59, 59, 999);
 
+    // 3. Fetch orders for current and previous months
     const currentMonthOrders = await prisma.order.findMany({
       where: {
         status: { in: ['ACCEPTED', 'COMPLETED'] },
         updatedAt: { gte: startDate, lte: endDate },
       },
     });
-
     const previousMonthOrders = await prisma.order.findMany({
       where: {
         status: { in: ['ACCEPTED', 'COMPLETED'] },
         updatedAt: { gte: prevMonthStart, lte: prevMonthEnd },
       },
     });
-    
-    const currentRevenue = currentMonthOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+
+    // 4. Compute totals and percentage changes
+    const currentRevenue = currentMonthOrders.reduce(
+      (sum, order) => sum + (order.amount || 0),
+      0
+    );
     const currentSalesCount = currentMonthOrders.length;
-    const previousRevenue = previousMonthOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+    const previousRevenue = previousMonthOrders.reduce(
+      (sum, order) => sum + (order.amount || 0),
+      0
+    );
     const previousSalesCount = previousMonthOrders.length;
 
-    const revenueChange = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : currentRevenue > 0 ? 100 : 0;
-    const purchasesChange = previousSalesCount > 0 ? ((currentSalesCount - previousSalesCount) / previousSalesCount) * 100 : currentSalesCount > 0 ? 100 : 0;
-    
-    // Calculate weeks - simplified approach
+    const revenueChange =
+      previousRevenue > 0
+        ? ((currentRevenue - previousRevenue) / previousRevenue) * 100
+        : currentRevenue > 0
+        ? 100
+        : 0;
+    const purchasesChange =
+      previousSalesCount > 0
+        ? ((currentSalesCount - previousSalesCount) / previousSalesCount) * 100
+        : currentSalesCount > 0
+        ? 100
+        : 0;
+
+    // 5. Split the month into fixed 7-day “weeks”
+    const daysInMonth = endDate.getDate();             // e.g. 31
+    const numberOfWeeks = Math.ceil(daysInMonth / 7);  // e.g. 5
+
+    /** @type {WeekStat[]} */
     const weeklyStats = [];
     const weekBoundaries = [];
-    
-    // Find the first Monday on or before the month start
-    const firstDay = new Date(year, monthIndex, 1);
-    const firstDayOfWeek = firstDay.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    
-    let currentWeekStart = new Date(firstDay);
-    // Adjust to get the Monday of the week containing the first day
-    const daysToSubtract = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
-    currentWeekStart.setDate(firstDay.getDate() - daysToSubtract);
-    
-    let weekNumber = 1;
 
-    // Generate week boundaries
-    while (currentWeekStart <= endDate) {
-      const weekEnd = new Date(currentWeekStart);
-      weekEnd.setDate(currentWeekStart.getDate() + 6);
+    for (let i = 0; i < numberOfWeeks; i++) {
+      const weekNum = i + 1;
+      const startDay = i * 7 + 1;
+      const endDay = Math.min((i + 1) * 7, daysInMonth);
+
+      const weekStart = new Date(year, monthIndex, startDay);
+      const weekEnd = new Date(year, monthIndex, endDay);
       weekEnd.setHours(23, 59, 59, 999);
-      
-      // Only include weeks that overlap with the current month
-      if (weekEnd >= startDate) {
-        const displayStart = new Date(Math.max(currentWeekStart.getTime(), startDate.getTime()));
-        const displayEnd = new Date(Math.min(weekEnd.getTime(), endDate.getTime()));
-        
-        weekBoundaries.push({
-          start: new Date(currentWeekStart),
-          end: new Date(weekEnd)
-        });
-        
-        weeklyStats.push({
-          week: `Week ${weekNumber}`,
-          dateRange: `${displayStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${displayEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
-          totalRevenue: 0,
-          totalPurchase: 0,
-        });
-        weekNumber++;
-      }
-      
-      currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+
+      weeklyStats.push({
+        week: `Week ${weekNum}`,
+        dateRange:
+          `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` +
+          ` - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+        totalRevenue: 0,
+        totalPurchase: 0,
+      });
+      weekBoundaries.push({ start: weekStart, end: weekEnd });
     }
 
-    // Assign orders to weeks
-    currentMonthOrders.forEach(order => {
+    // 6. Assign each order to its week‐bucket
+    currentMonthOrders.forEach((order) => {
       const orderDate = new Date(order.updatedAt);
-      
-      // Find the correct week for this order
       for (let i = 0; i < weekBoundaries.length; i++) {
-        if (orderDate >= weekBoundaries[i].start && orderDate <= weekBoundaries[i].end) {
+        const { start, end } = weekBoundaries[i];
+        if (orderDate >= start && orderDate <= end) {
           weeklyStats[i].totalRevenue += order.amount || 0;
           weeklyStats[i].totalPurchase++;
           break;
@@ -837,17 +844,18 @@ async getMonthlySalesAnalytics(year, month) {
       }
     });
 
-    // Round revenue values
-    weeklyStats.forEach(week => {
-      week.totalRevenue = Number(week.totalRevenue.toFixed(2));
+    // 7. Round revenue values
+    weeklyStats.forEach((w) => {
+      w.totalRevenue = Number(w.totalRevenue.toFixed(2));
     });
 
+    // 8. Return summary and weekly breakdown
     return {
       summary: {
         totalRevenue: Number(currentRevenue.toFixed(2)),
         totalPurchases: currentSalesCount,
         revenueChange: Number(revenueChange.toFixed(2)),
-        purchasesChange: Number(purchasesChange.toFixed(2))
+        purchasesChange: Number(purchasesChange.toFixed(2)),
       },
       salesStatistic: weeklyStats,
     };
