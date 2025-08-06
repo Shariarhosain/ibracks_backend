@@ -17,8 +17,8 @@ const userService = {
   // Create a new user
   async createUser(userData, profileImageFile = null) {
     try {
-      const { name, phoneNumber, email, password, role, uid } = userData;
-      
+      const { name, phoneNumber=null, email, password, role, uid=null } = userData;
+
       // Check if user already exists
       const existingUser = await prisma.user.findUnique({
         where: { email }
