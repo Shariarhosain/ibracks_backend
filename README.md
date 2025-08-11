@@ -10,65 +10,71 @@ iBracks Music Platform is a full-featured backend service that powers a music st
 
 *Experience the elegant and intuitive design of iBracks Music Platform*
 
+### Homepage & Welcome Experience
+<div align="center">
+  <img src="docs/images/Home screen.jpg" alt="Homepage Interface" width="800"/>
+  <p><em>Modern homepage with featured content and intuitive navigation</em></p>
+</div>
+
 ### Authentication & Onboarding
 <div align="center">
-  <img src="docs/images/auth-signin.png" alt="Sign In Interface" width="600"/>
+  <img src="docs/images/Login.jpg" alt="Sign In Interface" width="600"/>
   <p><em>Sleek sign-in interface with social authentication options</em></p>
 </div>
 
 <div align="center">
-  <img src="docs/images/auth-signup.png" alt="Sign Up Interface" width="600"/>
+  <img src="docs/images/Sign up.jpg" alt="Sign Up Interface" width="600"/>
   <p><em>Streamlined user registration with comprehensive form validation</em></p>
 </div>
 
 ### Music Discovery & Browsing
 <div align="center">
-  <img src="docs/images/tracks-browse.png" alt="Track Browsing" width="800"/>
+  <img src="docs/images/Tracks.jpg" alt="Track Browsing" width="800"/>
   <p><em>Advanced music discovery with filtering, search, and new releases carousel</em></p>
 </div>
 
 <div align="center">
-  <img src="docs/images/products-detail.png" alt="Product Details" width="800"/>
+  <img src="docs/images/Products page.jpg" alt="Product Details" width="800"/>
   <p><em>Rich product pages with audio preview, licensing options, and detailed track information</em></p>
 </div>
 
 ### Services & Content Management
 <div align="center">
-  <img src="docs/images/services-overview.png" alt="Services Overview" width="800"/>
+  <img src="docs/images/Services.jpg" alt="Services Overview" width="800"/>
   <p><em>Comprehensive music production services from idea to final track</em></p>
 </div>
 
 <div align="center">
-  <img src="docs/images/videos-library.png" alt="Video Library" width="800"/>
+  <img src="docs/images/Videos.jpg" alt="Video Library" width="800"/>
   <p><em>Educational content library with music composition tutorials and masterclasses</em></p>
 </div>
 
 ### User Experience & Shopping
 <div align="center">
-  <img src="docs/images/shopping-cart.png" alt="Shopping Cart" width="700"/>
+  <img src="docs/images/Checkout.jpg" alt="Shopping Cart" width="700"/>
   <p><em>Intuitive shopping cart with secure payment processing</em></p>
 </div>
 
 <div align="center">
-  <img src="docs/images/purchase-success.png" alt="Purchase Success" width="600"/>
+  <img src="docs/images/Checkout-1.jpg" alt="Purchase Success" width="600"/>
   <p><em>Confirmation flow ensuring smooth transaction completion</em></p>
 </div>
 
 ### About & Brand Story
 <div align="center">
-  <img src="docs/images/about-us.png" alt="About Us" width="800"/>
+  <img src="docs/images/About us page UI.jpg" alt="About Us" width="800"/>
   <p><em>Compelling brand story showcasing our mission and discography</em></p>
 </div>
 
 ### Contact & Communication
 <div align="center">
-  <img src="docs/images/contact-form.png" alt="Contact Form" width="800"/>
+  <img src="docs/images/Contact.jpg" alt="Contact Form" width="800"/>
   <p><em>Professional contact interface for client inquiries and collaborations</em></p>
 </div>
 
 ### Artist Dashboard (Admin Interface)
 <div align="center">
-  <img src="docs/images/admin-dashboard.png" alt="Artist Dashboard" width="900"/>
+  <img src="docs/images/Dashboard.jpg" alt="Artist Dashboard" width="900"/>
   <p><em>Comprehensive artist dashboard with analytics, track management, and upload capabilities</em></p>
 </div>
 
