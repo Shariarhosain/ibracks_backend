@@ -511,8 +511,8 @@ const songService = {
         });
       }
       
-      // Delete old files
-      if (audioResult && oldAudioFilename) {
+      // Delete old files only if new files were successfully uploaded
+      if (audioResult && oldAudioFilename && oldAudioFilename !== audioResult.filename) {
         try {
           await deleteAudioFile(oldAudioFilename);
           console.log(`Successfully deleted old audio: ${oldAudioFilename}`);
@@ -521,7 +521,7 @@ const songService = {
         }
       }
       
-      if (coverResult && oldCoverFilename) {
+      if (coverResult && oldCoverFilename && oldCoverFilename !== coverResult.filename) {
         try {
           await deleteCoverImage(oldCoverFilename);
           console.log(`Successfully deleted old cover: ${oldCoverFilename}`);

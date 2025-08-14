@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import licenseController from '../controllers/licenseController.js';
 import verifyToken from '../middlewares/verifytoken.js';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 
 const router = Router();
 
@@ -15,4 +18,5 @@ router.route('/:id')
   .put(verifyToken, licenseController.updatePack)
   .delete(verifyToken, licenseController.deletePack);
 
-export default router;
+export default router;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+
